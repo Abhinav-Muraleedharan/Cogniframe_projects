@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 from torchvision import transforms
 
-from data import DriveDataset
-from Qmodel_MK2 import build_unet
-from loss import DiceLoss, DiceBCELoss
+from ..dataloader.data import DriveDataset
+from ..models.Qmodel_MK2 import build_unet
+from ..loss_function.loss import DiceLoss, DiceBCELoss
 from utils import seeding, create_dir, epoch_time
 from torchvision import transforms
 transform = transforms.ToPILImage()
