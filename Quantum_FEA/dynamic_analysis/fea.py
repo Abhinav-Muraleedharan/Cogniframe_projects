@@ -24,10 +24,7 @@ Case 2: With external load (static)
 Case 3: With external load (dynamic)
     M ddot X = -KX + F(t)
 
-"""
-
-
-
+    """
 import numpy as np 
 from scipy.linalg import sqrtm
 
@@ -49,7 +46,7 @@ class Structure:
     
 
 if __name__ == '__main__':
-    
+
     M = np.array([[1,0],[0,2]])
     K = np.array([[2,-1],[-1,2]])
     F = np.array([0,1])             
