@@ -28,6 +28,7 @@ import numpy as np
 from scipy.spatial import Delaunay
 from scipy.linalg import sqrtm
 from scipy.sparse import dok_matrix
+import matplotlib.pyplot as plt 
 
 def generate_symmetric_matrix(n):
     # Generate a random square matrix
@@ -63,14 +64,15 @@ def generate_convex_polygon(num_vertices):
 Class Node:
 
 Attributes: 
-index --------> node index
-x ------------> x coordinate of the node
-y ------------> y coordinate of the node
-F_x ----------> Force in x direction acting on the node
-F_y ----------> Force in y direction acting on the node
-b_x ----------> boundary condition in the x direction (1, if the x displacement of node is constrained, 0 otherwise )
-b_y ----------> boundary condition in the y direction (1, if the y displacement of node is constrained, 0 otherwise )
-adj_nodes ----> list containing indices of adjacent nodes
+
+    index --------> node index
+    x ------------> x coordinate of the node
+    y ------------> y coordinate of the node
+    F_x ----------> Force in x direction acting on the node
+    F_y ----------> Force in y direction acting on the node
+    b_x ----------> boundary condition in the x direction (1, if the x displacement of node is constrained, 0 otherwise )
+    b_y ----------> boundary condition in the y direction (1, if the y displacement of node is constrained, 0 otherwise )
+    adj_nodes ----> list containing indices of adjacent nodes
 
 """
 
@@ -90,7 +92,9 @@ class Node:
 
 
 class Structure:
-
+    # definition: 
+        # material properties
+        # density, Youngs Modulus
     def __init__(self,n_nodes):
 
         # 1. Define Geometry
@@ -114,20 +118,41 @@ class Structure:
                 # print(adj)
                 self.nodes[self.triangulation_vertices.simplices[i,j]].assign_adjacent_nodes(adj)
             
-
+        # Compute Adjacency Matrix A
+        self.A = self._compute_adjacency_matrix() # comment this out if N > 2**30 
         # Compute Stiffness Matrix K
-        
-        # Compute square root of A matrix. A = sqrt(inv(M))K sqrt(M)
+        self.K = 10*self.A 
+        # Define Mass Matrix M
+        self.M = np.diag(np.full(len(self.nodes), 1.5))
+        # Compute Hamiltonian
+        self.H = self._compute_hamiltonian()
     
     def _generate_geometry(self, n_nodes):
         # generate random polygon 
         points = generate_convex_polygon(n_nodes)
         return points
     
+    def _compute_adjacency_matrix(self):
+        A = np.zeros((len(self.nodes), len(self.nodes)))
+        for node in self.nodes:
+            for j in node.adj_nodes:
+                A[node.index,j] = 1
+        return A 
+    
         
-    #def visualize()
+    def visualize_geometry(self):
+        #Plot the triangulation
+        plt.figure(figsize=(6, 6))
+        plt.triplot(self.points[:, 0], self.points[:, 1], self.triangulation_vertices.simplices.copy(), 'b-')
+        plt.plot(self.points[:, 0], self.points[:, 1], 'o', markersize=5, color='red')
+        plt.fill(self.points[:, 0], self.points[:, 1], alpha=0.2, color='grey')
+        plt.gca().set_aspect('equal', adjustable='box')
+        plt.title("Random Structure:")
+        plt.show()
 
-    def compute_hamiltonian(self):
+
+
+    def _compute_hamiltonian(self):
 
         H_squared =  - np.linalg.inv(np.sqrt(self.M)) @ self.K @ np.linalg.inv(np.sqrt(self.M))
         # returns quantum hamiltonian
@@ -146,9 +171,13 @@ if __name__ == '__main__':
     # H_2 = S_1.compute_hamiltonian()
     # print("done computation")
     # print(H_2)
-    n = 2**30
+    n = 2**2
     s_1 = Structure(n)
-    print(s_1.nodes[100].adj_nodes)
+    s_1.visualize_geometry()
+    print(s_1.A)
+    print(s_1.M)
+    print(s_1.H)
+    print(s_1.nodes[0].adj_nodes)
     
 
 

@@ -1,3 +1,4 @@
+from fea import Structure 
 import pennylane as plane
 from pennylane import ApproxTimeEvolution
 # from qiskit.quantum_info import SparsePauliOp
@@ -11,7 +12,7 @@ to implement e^{-iHt}.
 
 2. Then, we apply trotter suzuki method (Approximate Time Evolution Operator to compute U(t)= e^{-i Ht} = )
 """
-n_wires = 20
+n_wires = 10 
 wires = range(n_wires)
 
 dev = plane.device('default.qubit', wires=n_wires)
@@ -26,6 +27,7 @@ obs = [plane.PauliX(0),plane.PauliX(1),plane.PauliX(2),plane.PauliX(3),
        plane.PauliX(0),plane.PauliX(1),plane.PauliX(2),plane.PauliX(3),
        plane.PauliX(0),plane.PauliX(1),plane.PauliX(2),plane.PauliX(3),
        plane.PauliX(0),plane.PauliX(1),plane.PauliX(2),plane.PauliX(3)]
+
 hamiltonian =plane.Hamiltonian(coeffs, obs)
 
 plane.qnode(dev)
