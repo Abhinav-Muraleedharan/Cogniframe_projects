@@ -110,6 +110,10 @@ class Structure:
 
         self.nodes = [ Node(i,self.points[i][0], self.points[i][1],0,0,0,0,set([i])) for i in range(n_nodes)]
 
+        # Initialize system state vector: x 
+
+        
+
         # Assign adjacent nodes to each node
         for i in range(len(self.triangulation_vertices.simplices)):
             #print(self.triangulation_vertices.simplices[i])
@@ -126,6 +130,8 @@ class Structure:
         self.M = np.diag(np.full(len(self.nodes), 1.5))
         # Compute Hamiltonian
         self.H = self._compute_hamiltonian()
+        # Compute F matrix. Note, M\ddot x = -K. \ddot x = -inv(M) K x => \ddot x = F x (F = -inv(M) K )
+        self.F = self._compute_F()
     
     def _generate_geometry(self, n_nodes):
         # generate random polygon 
@@ -137,6 +143,8 @@ class Structure:
         for node in self.nodes:
             for j in node.adj_nodes:
                 A[node.index,j] = 1
+                print("modified")
+                A[j,node.index] = 1
         return A 
     
         
@@ -150,7 +158,9 @@ class Structure:
         plt.title("Random Structure:")
         plt.show()
 
-
+    def _compute_F(self):
+        F = -np.linalg.inv(self.M) @ self.K
+        return F 
 
     def _compute_hamiltonian(self):
 
@@ -173,10 +183,14 @@ if __name__ == '__main__':
     # print(H_2)
     n = 2**2
     s_1 = Structure(n)
+    print(s_1.points)
+    print(s_1.points.shape)
+    print("X coordinates: ",s_1.points[:,0])
     s_1.visualize_geometry()
-    print(s_1.A)
-    print(s_1.M)
-    print(s_1.H)
+    print("Adjoint Matrix:\n",s_1.A)
+    print("Stiffness Matrix:\n",s_1.K)
+    print("Mass Matrix:\n",s_1.M)
+    print("Hamiltonian:\n", s_1.H)
     print(s_1.nodes[0].adj_nodes)
     
 
