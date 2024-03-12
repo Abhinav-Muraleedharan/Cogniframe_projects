@@ -4,9 +4,10 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 
 # Define Structure:
-
-s = Structure
+n = 2**4
+s = Structure(n)
 # 
+
 
 
 
