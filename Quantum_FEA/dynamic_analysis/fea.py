@@ -110,9 +110,9 @@ class Structure:
 
         self.nodes = [ Node(i,self.points[i][0], self.points[i][1],0,0,0,0,set([i])) for i in range(n_nodes)]
 
-        # Initialize system state vector: x 
+        # Define boundary Conditions:
 
-        
+        self._boundary_condition()
 
         # Assign adjacent nodes to each node
         for i in range(len(self.triangulation_vertices.simplices)):
@@ -132,6 +132,16 @@ class Structure:
         self.H = self._compute_hamiltonian()
         # Compute F matrix. Note, M\ddot x = -K. \ddot x = -inv(M) K x => \ddot x = F x (F = -inv(M) K )
         self.F = self._compute_F()
+
+    def _boundary_condition(self):
+        # displacement boundary conditions:-
+        # fix node 0 
+        self.nodes[0].b_x = 1
+        self.nodes[0].b_y = 1
+        self.nodes[1].b_x = 1
+        self.nodes[1].b_y = 1 
+        # force boundary conditions:-
+
     
     def _generate_geometry(self, n_nodes):
         # generate random polygon 
@@ -145,6 +155,12 @@ class Structure:
                 A[node.index,j] = 1
                 print("modified")
                 A[j,node.index] = 1
+        for j in range(len(self.nodes)):
+            if self.nodes[j].b_x == 1:
+                k_jj = 1000
+            else :
+                k_jj = 0
+            A[j,j] = -(np.sum(A[j]) + k_jj)
         return A 
     
         
@@ -181,7 +197,7 @@ if __name__ == '__main__':
     # H_2 = S_1.compute_hamiltonian()
     # print("done computation")
     # print(H_2)
-    n = 2**2
+    n = 2**10
     s_1 = Structure(n)
     print(s_1.points)
     print(s_1.points.shape)

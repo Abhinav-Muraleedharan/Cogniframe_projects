@@ -4,7 +4,7 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import time 
 # Define Structure:
-n = 2**2
+n = 2**10
 s = Structure(n)
 # 
 
@@ -14,7 +14,7 @@ A = s.F
 def system(t, y):
     x, v = np.split(y, 2)
     dxdt = v
-    dvdt = np.dot(A, x)
+    dvdt = np.dot(-A, x)
     return np.concatenate([dxdt, dvdt])
 
 # Initial conditions
@@ -23,7 +23,7 @@ v0 = np.random.rand(n)  # Initial velocity
 initial_conditions = np.concatenate([x0, v0])
 
 # Time span
-t_span = (0, 500)
+t_span = (0, 50)
 t_eval = np.linspace(*t_span, 1000)
 
 # Solve the ODE
@@ -32,15 +32,31 @@ solution = solve_ivp(system, t_span, initial_conditions, t_eval=t_eval)
 end_time = time.time()
 
 elapsed_time = end_time - start_time 
-# Plotting the solution
+
+
+# Define the subplot grid
+num_columns = 4  # For example, you can adjust based on your preference and screen size
+num_rows = n // num_columns + (n % num_columns > 0)
+fig, axes = plt.subplots(n,1, figsize=(5*num_columns, 5*num_rows)) # Creates n subplots vertically aligned
+for i in range(n):
+    axes[i].plot(solution.t, solution.y[i], label=f'$x_{i}(t)$')
+    axes[i].legend()
+    axes[i].set_xlabel('Time')
+    axes[i].set_ylabel(f'$x_{i}(t)$')
+    axes[i].grid(True)
+
+plt.tight_layout() # Adjust the layout to not overlap subplots
+plt.show()
+
+#Plotting the solution
 plt.figure(figsize=(10, 5))
 for i in range(n):
-    plt.plot(solution.t, solution.y[i], label='$x_{{i}}(t)$')
+    plt.plot(solution.t, solution.y[i], label=f'$x_{i}(t)$')
     
 plt.xlabel('Time')
 plt.ylabel('Position')
 plt.legend()
-plt.title('Solution of the second-order vector ODE')
+plt.title('Simulation Results:')
 plt.show()
 
 
