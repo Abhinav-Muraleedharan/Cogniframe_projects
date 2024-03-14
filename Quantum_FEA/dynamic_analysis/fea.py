@@ -197,7 +197,7 @@ if __name__ == '__main__':
     # H_2 = S_1.compute_hamiltonian()
     # print("done computation")
     # print(H_2)
-    n = 2**10
+    n = 2**4
     s_1 = Structure(n)
     print(s_1.points)
     print(s_1.points.shape)
