@@ -24,11 +24,15 @@ Case 3: With external load (dynamic)
 
     """
 import scipy 
+import pennylane as qml
 import numpy as np 
 from scipy.spatial import Delaunay
 from scipy.linalg import sqrtm
 from scipy.sparse import dok_matrix
 import matplotlib.pyplot as plt 
+from pennylane import ApproxTimeEvolution
+
+dev = qml.device("default.qubit", wires=4)
 
 def generate_symmetric_matrix(n):
     # Generate a random square matrix
@@ -208,6 +212,19 @@ if __name__ == '__main__':
     print("Mass Matrix:\n",s_1.M)
     print("Hamiltonian:\n", s_1.H)
     print(s_1.nodes[0].adj_nodes)
+    H = s_1.H 
+    H_decom = qml.pauli_decompose(H)
+    # print(H_decom)
+
+    @qml.qnode(dev)
+    def circuit(time):
+        # plane.Hadamard(wires=0)
+        qml.ApproxTimeEvolution(H_decom, time, 1)
+        val = qml.probs(wires=[0,1,2,3])
+        return val
+    res = [circuit(t) for t in range(0,100)]
+    print(res)
+
     
 
 
