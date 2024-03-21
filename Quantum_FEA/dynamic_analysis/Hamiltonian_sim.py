@@ -14,19 +14,20 @@ to implement e^{-iHt}.
 
 """
 
-n_wires = 10 
-wires = range(n_wires)
 
-def simulate_quantum_dynamics(hamiltonian):
+def simulate_quantum_dynamics(hamiltonian,n):
+    print("sdfsdfcs")
+    n_wires = n 
+    wires = range(n_wires)
     dev = plane.device("default.qubit", wires=n_wires)
     @plane.qnode(dev)
     def trotter_circuit(time):
         # plane.Hadamard(wires=0)
         plane.ApproxTimeEvolution(hamiltonian, time, 1)
-        val = plane.probs(wires=[0,1,2,3,4,5,6,7,8,9])
+        val = plane.probs(wires=[0,1,2,3])
         return val
-    res = [trotter_circuit(t) for t in range(0,100)]
-    return res
+    res = [trotter_circuit(t) for t in range(0,2)]
+    return res[0]
 
 if __name__ == '__main__':
     
