@@ -157,7 +157,7 @@ class Structure:
         for node in self.nodes:
             for j in node.adj_nodes:
                 A[node.index,j] = 1
-                # print("modified")
+                # print("modidfied")
                 A[j,node.index] = 1
         for j in range(len(self.nodes)):
             if self.nodes[j].b_x == 1:

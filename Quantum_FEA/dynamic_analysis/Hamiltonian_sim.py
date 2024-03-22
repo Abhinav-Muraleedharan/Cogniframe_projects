@@ -19,7 +19,7 @@ def simulate_quantum_dynamics(hamiltonian,n):
     print("sdfsdfcs")
     n_wires = n 
     wires = range(n_wires)
-    dev = plane.device("default.qubit", wires=n_wires)
+    dev = plane.device("qiskit.aer", wires=n_wires)
     @plane.qnode(dev)
     def trotter_circuit(time):
         # plane.Hadamard(wires=0)
@@ -27,6 +27,7 @@ def simulate_quantum_dynamics(hamiltonian,n):
         val = plane.probs(wires=[0,1,2,3])
         return val
     res = [trotter_circuit(t) for t in range(0,2)]
+    print(dev._circuit.qasm(formatted=True))
     return res[0]
 
 if __name__ == '__main__':
@@ -45,3 +46,4 @@ if __name__ == '__main__':
     hamiltonian = plane.Hamiltonian(coeffs, obs)
     results = simulate_quantum_dynamics(hamiltonian)
     print(results[10])
+    
