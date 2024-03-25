@@ -4,7 +4,7 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import time 
 # Define Structure:
-n = 2**10
+n = 2**4
 s = Structure(n)
 # 
 
@@ -23,7 +23,7 @@ v0 = np.random.rand(n)  # Initial velocity
 initial_conditions = np.concatenate([x0, v0])
 
 # Time span
-t_span = (0, 50)
+t_span = (0, 500)
 t_eval = np.linspace(*t_span, 1000)
 
 # Solve the ODE
@@ -52,6 +52,16 @@ plt.show()
 plt.figure(figsize=(10, 5))
 for i in range(n):
     plt.plot(solution.t, solution.y[i], label=f'$x_{i}(t)$')
+
+# Plot norm ||X(t)|| over time
+norm_X_t = np.linalg.norm(solution.y, axis=0)
+plt.figure(figsize=(12, 6))
+plt.plot(solution.t, norm_X_t)
+plt.title('Norm ||X(t)|| Over Time')
+plt.xlabel('Time')
+plt.ylabel('||X(t)||')
+plt.grid(True)
+plt.show()
     
 plt.xlabel('Time')
 plt.ylabel('Position')

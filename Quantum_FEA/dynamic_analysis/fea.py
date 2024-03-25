@@ -161,7 +161,7 @@ class Structure:
                 A[j,node.index] = 1
         for j in range(len(self.nodes)):
             if self.nodes[j].b_x == 1:
-                k_jj = 1000
+                k_jj = 100
             else :
                 k_jj = 0
             A[j,j] = -(np.sum(A[j]) + k_jj)
