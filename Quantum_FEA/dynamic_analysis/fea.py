@@ -12,6 +12,9 @@ is the external load input applied to nodes.
 Case 1: Zero External Load
 
     M ddot X = - KX
+
+    Reduction to  Quantum Evolution:
+
     
 Case 2: With external load (static)
     M ddot X = -KX + F             eq(1)
@@ -26,6 +29,7 @@ Case 3: With external load (dynamic)
 import scipy 
 import pennylane as qml
 import numpy as np 
+np.random.seed(42)
 from scipy.spatial import Delaunay
 from scipy.linalg import sqrtm
 from scipy.sparse import dok_matrix
@@ -201,7 +205,7 @@ if __name__ == '__main__':
     # H_2 = S_1.compute_hamiltonian()
     # print("done computation")
     # print(H_2)
-    n = 2**4
+    n = 2**6
     s_1 = Structure(n)
     print(s_1.points)
     print(s_1.points.shape)
@@ -213,17 +217,22 @@ if __name__ == '__main__':
     print("Hamiltonian:\n", s_1.H)
     print(s_1.nodes[0].adj_nodes)
     H = s_1.H 
-    H_decom = qml.pauli_decompose(H)
+    # save Hamiltonian Matrix on to file:
+    np.save("H.npy", H)
+    is_symmetric = np.allclose(H, H.T)
+
+    print(is_symmetric)
+    # H_decom = qml.pauli_decompose(H)
     # print(H_decom)
 
-    @qml.qnode(dev)
-    def circuit(time):
-        # plane.Hadamard(wires=0)
-        qml.ApproxTimeEvolution(H_decom, time, 1)
-        val = qml.probs(wires=[0,1,2,3])
-        return val
-    res = [circuit(t) for t in range(0,100)]
-    print(res)
+    # @qml.qnode(dev)
+    # def circuit(time):
+    #     # plane.Hadamard(wires=0)
+    #     qml.ApproxTimeEvolution(H_decom, time, 1)
+    #     val = qml.probs(wires=[0,1,2,3])
+    #     return val
+    # res = [circuit(t) for t in range(0,100)]
+    # print(res)
 
     
 
