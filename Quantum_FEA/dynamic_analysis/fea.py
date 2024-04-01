@@ -137,7 +137,9 @@ class Structure:
         # Define Mass Matrix M
         self.M = np.diag(np.full(len(self.nodes), 1.5))
         # Compute Hamiltonian
-        self.H = self._compute_hamiltonian()
+        H, H_block = self._compute_hamiltonian()
+        self.H = H
+        self.H_block = H_block
         # Compute F matrix. Note, M\ddot x = -K. \ddot x = -inv(M) K x => \ddot x = F x (F = -inv(M) K )
         self.F = self._compute_F()
 
@@ -197,14 +199,6 @@ class Structure:
     
 
 if __name__ == '__main__':
-    # n = 2**10
-    # M = np.identity(n)
-    # K = generate_symmetric_matrix(n)
-    # F = np.array([0,1])             
-    # S_1 = Structure(M,K,F)
-    # H_2 = S_1.compute_hamiltonian()
-    # print("done computation")
-    # print(H_2)
     n = 2**6
     s_1 = Structure(n)
     print(s_1.points)
@@ -216,23 +210,15 @@ if __name__ == '__main__':
     print("Mass Matrix:\n",s_1.M)
     print("Hamiltonian:\n", s_1.H)
     print(s_1.nodes[0].adj_nodes)
-    H,H_block = s_1.H 
+    H = s_1.H 
+    H_block = s_1.H_block
     # save Hamiltonian Matrix on to file:
     np.save("H.npy", H)
+    np.save("H_block.npy",H_block)
     is_symmetric = np.allclose(H, H.T)
-
+    print(s_1.H_block)
     print(is_symmetric)
-    # H_decom = qml.pauli_decompose(H)
-    # print(H_decom)
-
-    # @qml.qnode(dev)
-    # def circuit(time):
-    #     # plane.Hadamard(wires=0)
-    #     qml.ApproxTimeEvolution(H_decom, time, 1)
-    #     val = qml.probs(wires=[0,1,2,3])
-    #     return val
-    # res = [circuit(t) for t in range(0,100)]
-    # print(res)
+   
 
     
 
