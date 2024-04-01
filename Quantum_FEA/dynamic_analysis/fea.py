@@ -187,13 +187,13 @@ class Structure:
         return F 
 
     def _compute_hamiltonian(self):
-
+        X = np.array([[0, 1], [1, 0]])
         H_squared =  - np.linalg.inv(np.sqrt(self.M)) @ self.K @ np.linalg.inv(np.sqrt(self.M))
         # returns quantum hamiltonian
         # print(H_squared)
         H = sqrtm(H_squared)
-
-        return H
+        H_block = np.kron(X, H)
+        return H,H_block
     
 
 if __name__ == '__main__':
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     print("Mass Matrix:\n",s_1.M)
     print("Hamiltonian:\n", s_1.H)
     print(s_1.nodes[0].adj_nodes)
-    H = s_1.H 
+    H,H_block = s_1.H 
     # save Hamiltonian Matrix on to file:
     np.save("H.npy", H)
     is_symmetric = np.allclose(H, H.T)
