@@ -10,7 +10,7 @@ s = Structure(n_nodes)
 
 s.visualize_geometry()
 
-H  = s.H 
+H  = s.H_block
 print("Hamiltonian:", H)
 hamiltonian  = qml.pauli_decompose(H)
 print(hamiltonian)

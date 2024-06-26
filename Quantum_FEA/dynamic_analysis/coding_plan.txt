@@ -1,0 +1,15 @@
+Class / Method Structure:
+
+
+User inputs model / gemoetry - that defines 
+node topology. 
+
+From node topology and initial conditions:
+
+1. Classical simulation.py would run classical simulation of the problem. 
+2. Quantum Simulator would run quantum simulation. 
+
+Question is how to organize the code? 
+
+It would be better to have seperate simulator modules, that takes
+in spec and perform desired simulation. 
