@@ -26,6 +26,26 @@ Case 3: With external load (dynamic)
     M ddot X = -KX + F(t)
 
     """
+
+
+
+"""
+
+alpha_i = Tr(P_iH)
+
+H = 
+[[0 , A]
+A   0]]
+
+
+
+{P_0 , alpha_0}, {P_1, alpha_1}
+
+H = alph_0.P_0 + alpha_1.P_1 +..
+"""
+
+
+
 import scipy 
 import pennylane as qml
 import numpy as np 
@@ -175,7 +195,12 @@ class Structure:
     
         
     def visualize_geometry(self):
-        #Plot the triangulation
+        
+        """ 
+
+        Method to visualize Results:
+        
+        """
         plt.figure(figsize=(6, 6))
         plt.triplot(self.points[:, 0], self.points[:, 1], self.triangulation_vertices.simplices.copy(), 'b-')
         plt.plot(self.points[:, 0], self.points[:, 1], 'o', markersize=5, color='red')
