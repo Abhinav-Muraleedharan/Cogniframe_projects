@@ -13,3 +13,7 @@ Question is how to organize the code?
 
 It would be better to have seperate simulator modules, that takes
 in spec and perform desired simulation. 
+
+Classical Simulator - Reads in system spec and solves classical ode. 
+
+Quantum Simulator - Reads in Hamiltonian Dict file and performs trotter evolution. 
