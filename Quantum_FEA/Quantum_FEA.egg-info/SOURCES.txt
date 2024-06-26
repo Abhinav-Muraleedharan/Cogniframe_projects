@@ -1,0 +1,12 @@
+setup.py
+Quantum_FEA.egg-info/PKG-INFO
+Quantum_FEA.egg-info/SOURCES.txt
+Quantum_FEA.egg-info/dependency_links.txt
+Quantum_FEA.egg-info/top_level.txt
+dynamic_analysis/Classical_simulation.py
+dynamic_analysis/Hamiltonian_sim.py
+dynamic_analysis/__init__.py
+dynamic_analysis/conf.py
+dynamic_analysis/fea.py
+dynamic_analysis/main.py
+dynamic_analysis/test.py
