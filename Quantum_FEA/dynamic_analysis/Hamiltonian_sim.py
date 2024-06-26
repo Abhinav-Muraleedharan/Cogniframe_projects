@@ -2,6 +2,7 @@ from fea import Structure
 import pennylane as plane
 from pennylane import ApproxTimeEvolution
 # from qiskit.quantum_info import SparsePauliOp
+
 """
 Code for Hamiltonian Simulation:
 This module accepts Hamiltonian H, use trotter suzuki methods 
@@ -19,7 +20,7 @@ def simulate_quantum_dynamics(hamiltonian,n):
     print("sdfsdfcs")
     n_wires = n 
     wires = range(n_wires)
-    dev = plane.device("qiskit.aer", wires=n_wires)
+    dev = plane.device("default.qubit", wires=n_wires)
     @plane.qnode(dev)
     def trotter_circuit(time):
         # plane.Hadamard(wires=0)
