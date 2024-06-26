@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html lang="python" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dynamic_analysis.fea &#8212; Quantum-FEA 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css?v=12dfc556" />
+    <script src="../../_static/documentation_options.js?v=61cf8be8"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for dynamic_analysis.fea</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot; </span>
+<span class="sd">Classical Preprocessing Stage:</span>
+<span class="sd">This module loads FEA problem input, and returns Quantum Hamiltonian.</span>
+
+<span class="sd">Equation of Motion:</span>
+
+<span class="sd">M ddot X = - KX + F(t)</span>
+
+<span class="sd">Here, M is the Mass Matrix of the structure, K is the stiffness matrix, and F(t)</span>
+<span class="sd">is the external load input applied to nodes.</span>
+
+<span class="sd">Case 1: Zero External Load</span>
+
+<span class="sd">    M ddot X = - KX</span>
+
+<span class="sd">    Reduction to  Quantum Evolution:</span>
+
+<span class="sd">    </span>
+<span class="sd">Case 2: With external load (static)</span>
+<span class="sd">    M ddot X = -KX + F             eq(1)</span>
+<span class="sd">    M ddot X = -K(X + K^{-1} F)</span>
+<span class="sd">    Y = (X + K^{-1} F) </span>
+<span class="sd">    M ddot Y = -K Y</span>
+
+<span class="sd">Case 3: With external load (dynamic)</span>
+<span class="sd">    M ddot X = -KX + F(t)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">alpha_i = Tr(P_iH)</span>
+
+<span class="sd">H = </span>
+<span class="sd">[[0 , A]</span>
+<span class="sd">A   0]]</span>
+
+
+
+<span class="sd">{P_0 , alpha_0}, {P_1, alpha_1}</span>
+
+<span class="sd">H = alph_0.P_0 + alpha_1.P_1 +..</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+
+<span class="kn">import</span> <span class="nn">scipy</span> 
+<span class="kn">import</span> <span class="nn">pennylane</span> <span class="k">as</span> <span class="nn">qml</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span> 
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="kn">import</span> <span class="n">Delaunay</span>
+<span class="kn">from</span> <span class="nn">scipy.linalg</span> <span class="kn">import</span> <span class="n">sqrtm</span>
+<span class="kn">from</span> <span class="nn">scipy.sparse</span> <span class="kn">import</span> <span class="n">dok_matrix</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span> 
+<span class="kn">from</span> <span class="nn">pennylane</span> <span class="kn">import</span> <span class="n">ApproxTimeEvolution</span>
+
+<span class="n">dev</span> <span class="o">=</span> <span class="n">qml</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;default.qubit&quot;</span><span class="p">,</span> <span class="n">wires</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+<div class="viewcode-block" id="generate_symmetric_matrix">
+<a class="viewcode-back" href="../../modules.html#dynamic_analysis.fea.generate_symmetric_matrix">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_symmetric_matrix</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+    <span class="c1"># Generate a random square matrix</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="c1"># Make the matrix symmetric</span>
+    <span class="n">A_symmetric</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span> <span class="o">+</span> <span class="n">A</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="k">return</span> <span class="n">A_symmetric</span></div>
+
+
+<div class="viewcode-block" id="generate_convex_polygon">
+<a class="viewcode-back" href="../../modules.html#dynamic_analysis.fea.generate_convex_polygon">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_convex_polygon</span><span class="p">(</span><span class="n">num_vertices</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a set of points that form a convex polygon.</span>
+
+<span class="sd">    The approach is to generate random points, calculate their centroid,</span>
+<span class="sd">    sort them by angle from the centroid (which ensures convexity), and return</span>
+<span class="sd">    the sorted points as the vertices of the convex polygon.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Generate random points</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">num_vertices</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="mi">10</span>
+
+    <span class="c1"># Calculate the centroid of the points</span>
+    <span class="n">centroid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Calculate angles of points from the centroid</span>
+    <span class="n">angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">points</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">centroid</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">points</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">centroid</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># Sort points by angle</span>
+    <span class="n">sorted_points</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">angles</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="n">sorted_points</span></div>
+
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Class Node:</span>
+
+<span class="sd">Attributes: </span>
+
+<span class="sd">    index --------&gt; node index</span>
+<span class="sd">    x ------------&gt; x coordinate of the node</span>
+<span class="sd">    y ------------&gt; y coordinate of the node</span>
+<span class="sd">    F_x ----------&gt; Force in x direction acting on the node</span>
+<span class="sd">    F_y ----------&gt; Force in y direction acting on the node</span>
+<span class="sd">    b_x ----------&gt; boundary condition in the x direction (1, if the x displacement of node is constrained, 0 otherwise )</span>
+<span class="sd">    b_y ----------&gt; boundary condition in the y direction (1, if the y displacement of node is constrained, 0 otherwise )</span>
+<span class="sd">    adj_nodes ----&gt; list containing indices of adjacent nodes</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Node">
+<a class="viewcode-back" href="../../modules.html#dynamic_analysis.fea.Node">[docs]</a>
+<span class="k">class</span> <span class="nc">Node</span><span class="p">:</span> 
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">index</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">F_x</span><span class="p">,</span><span class="n">F_y</span><span class="p">,</span><span class="n">b_x</span><span class="p">,</span><span class="n">b_y</span><span class="p">,</span><span class="n">adj_nodes</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span> 
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">F_x</span> <span class="o">=</span> <span class="n">F_x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">F_y</span> <span class="o">=</span> <span class="n">F_y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b_x</span> <span class="o">=</span> <span class="n">b_x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b_y</span> <span class="o">=</span> <span class="n">b_y</span> 
+        <span class="bp">self</span><span class="o">.</span><span class="n">adj_nodes</span> <span class="o">=</span> <span class="n">adj_nodes</span>
+
+<div class="viewcode-block" id="Node.assign_adjacent_nodes">
+<a class="viewcode-back" href="../../modules.html#dynamic_analysis.fea.Node.assign_adjacent_nodes">[docs]</a>
+    <span class="k">def</span> <span class="nf">assign_adjacent_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">adj_nodes</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">adj_nodes</span> <span class="o">=</span> <span class="n">adj_nodes</span> </div>
+</div>
+
+
+
+<div class="viewcode-block" id="Structure">
+<a class="viewcode-back" href="../../modules.html#dynamic_analysis.fea.Structure">[docs]</a>
+<span class="k">class</span> <span class="nc">Structure</span><span class="p">:</span>
+    <span class="c1"># definition: </span>
+        <span class="c1"># material properties</span>
+        <span class="c1"># density, Youngs Modulus</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">n_nodes</span><span class="p">):</span>
+
+        <span class="c1"># 1. Define Geometry</span>
+
+            <span class="c1"># 1.1 define  points</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_geometry</span><span class="p">(</span><span class="n">n_nodes</span><span class="p">)</span>
+            <span class="c1"># 1.2 Perform triangulation</span>
+    
+        <span class="bp">self</span><span class="o">.</span><span class="n">triangulation_vertices</span> <span class="o">=</span> <span class="n">Delaunay</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">)</span>
+
+        <span class="c1"># initialize list of nodes </span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">[</span> <span class="n">Node</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="nb">set</span><span class="p">([</span><span class="n">i</span><span class="p">]))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_nodes</span><span class="p">)]</span>
+
+        <span class="c1"># Define boundary Conditions:</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_boundary_condition</span><span class="p">()</span>
+
+        <span class="c1"># Assign adjacent nodes to each node</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">triangulation_vertices</span><span class="o">.</span><span class="n">simplices</span><span class="p">)):</span>
+            <span class="c1">#print(self.triangulation_vertices.simplices[i])</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="n">adj</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">triangulation_vertices</span><span class="o">.</span><span class="n">simplices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">x</span><span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">triangulation_vertices</span><span class="o">.</span><span class="n">simplices</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="p">}</span>
+                <span class="c1"># print(adj)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">triangulation_vertices</span><span class="o">.</span><span class="n">simplices</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]]</span><span class="o">.</span><span class="n">assign_adjacent_nodes</span><span class="p">(</span><span class="n">adj</span><span class="p">)</span>
+            
+        <span class="c1"># Compute Adjacency Matrix A</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_adjacency_matrix</span><span class="p">()</span> <span class="c1"># comment this out if N &gt; 2**30 </span>
+        <span class="c1"># Compute Stiffness Matrix K</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">=</span> <span class="mi">10</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">A</span> 
+        <span class="c1"># Define Mass Matrix M</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">),</span> <span class="mf">1.5</span><span class="p">))</span>
+        <span class="c1"># Compute Hamiltonian</span>
+        <span class="n">H</span><span class="p">,</span> <span class="n">H_block</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_hamiltonian</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">H</span> <span class="o">=</span> <span class="n">H</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">H_block</span> <span class="o">=</span> <span class="n">H_block</span>
+        <span class="c1"># Compute F matrix. Note, M\ddot x = -K. \ddot x = -inv(M) K x =&gt; \ddot x = F x (F = -inv(M) K )</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">F</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_F</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_boundary_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># displacement boundary conditions:-</span>
+        <span class="c1"># fix node 0 </span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">b_x</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">b_y</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">b_x</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">b_y</span> <span class="o">=</span> <span class="mi">1</span> 
+        <span class="c1"># force boundary conditions:-</span>
+
+    
+    <span class="k">def</span> <span class="nf">_generate_geometry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_nodes</span><span class="p">):</span>
+        <span class="c1"># generate random polygon </span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">generate_convex_polygon</span><span class="p">(</span><span class="n">n_nodes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">points</span>
+    
+    <span class="k">def</span> <span class="nf">_compute_adjacency_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">adj_nodes</span><span class="p">:</span>
+                <span class="n">A</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">index</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="c1"># print(&quot;modidfied&quot;)</span>
+                <span class="n">A</span><span class="p">[</span><span class="n">j</span><span class="p">,</span><span class="n">node</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">b_x</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">k_jj</span> <span class="o">=</span> <span class="mi">100</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="n">k_jj</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">A</span><span class="p">[</span><span class="n">j</span><span class="p">,</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">+</span> <span class="n">k_jj</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">A</span> 
+    
+        
+<div class="viewcode-block" id="Structure.visualize_geometry">
+<a class="viewcode-back" href="../../modules.html#dynamic_analysis.fea.Structure.visualize_geometry">[docs]</a>
+    <span class="k">def</span> <span class="nf">visualize_geometry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot; </span>
+
+<span class="sd">        Method to visualize Results:</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">triplot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">triangulation_vertices</span><span class="o">.</span><span class="n">simplices</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="s1">&#39;b-&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;red&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;grey&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s1">&#39;box&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Random Structure:&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_compute_F</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">M</span><span class="p">)</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span>
+        <span class="k">return</span> <span class="n">F</span> 
+
+    <span class="k">def</span> <span class="nf">_compute_hamiltonian</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="n">H_squared</span> <span class="o">=</span>  <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">M</span><span class="p">))</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">K</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">M</span><span class="p">))</span>
+        <span class="c1"># returns quantum hamiltonian</span>
+        <span class="c1"># print(H_squared)</span>
+        <span class="n">H</span> <span class="o">=</span> <span class="n">sqrtm</span><span class="p">(</span><span class="n">H_squared</span><span class="p">)</span>
+        <span class="n">H_block</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">H</span><span class="p">,</span><span class="n">H_block</span></div>
+
+    
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">6</span>
+    <span class="n">s_1</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">s_1</span><span class="o">.</span><span class="n">points</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">s_1</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;X coordinates: &quot;</span><span class="p">,</span><span class="n">s_1</span><span class="o">.</span><span class="n">points</span><span class="p">[:,</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">s_1</span><span class="o">.</span><span class="n">visualize_geometry</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Adjoint Matrix:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">s_1</span><span class="o">.</span><span class="n">A</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Stiffness Matrix:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">s_1</span><span class="o">.</span><span class="n">K</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Mass Matrix:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">s_1</span><span class="o">.</span><span class="n">M</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hamiltonian:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">s_1</span><span class="o">.</span><span class="n">H</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">s_1</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">adj_nodes</span><span class="p">)</span>
+    <span class="n">H</span> <span class="o">=</span> <span class="n">s_1</span><span class="o">.</span><span class="n">H</span> 
+    <span class="n">H_block</span> <span class="o">=</span> <span class="n">s_1</span><span class="o">.</span><span class="n">H_block</span>
+    <span class="c1"># save Hamiltonian Matrix on to file:</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;H.npy&quot;</span><span class="p">,</span> <span class="n">H</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;H_block.npy&quot;</span><span class="p">,</span><span class="n">H_block</span><span class="p">)</span>
+    <span class="n">is_symmetric</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">s_1</span><span class="o">.</span><span class="n">H_block</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">is_symmetric</span><span class="p">)</span>
+   
+
+    
+
+
+
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Quantum-FEA</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Abhinav Muraleedharan.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
